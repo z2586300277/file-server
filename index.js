@@ -9,5 +9,6 @@ export default [
     { id: "font_en", name: "英文字体", url: HOST + "data/font_en.json", image: '', type: "data" },
     { id: "konglong", name: "恐龙", url: HOST + "model/konglong.fbx", image: HOST + "cover/konglong.webp", type: "model" },
     { id: "chanxian", name: "产线模型", url: HOST + "model/chanxian.glb", image: HOST + "cover/chanxian.webp", type: "model" },
-    { id: "elegant", name: "优雅永不过时", url: HOST + "images/elegant.jpg", image: HOST + "images/elegant.jpg", type: "image" }
+    { id: "elegant", name: "优雅永不过时", url: HOST + "images/elegant.jpg", image: HOST + "images/elegant.jpg", type: "image" },
+    { id: "normal", name: "法线贴图", url: HOST + "images/normal.jpg", image: HOST + "images/normal.jpg", type: "image" }
 ];
