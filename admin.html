@@ -100,14 +100,17 @@ const dir = t => t === 'image' ? 'images' : t;
 const pathKey = url => { const m = String(url||'').match(/(?:images|model|video|audio|data|file)\/[^'"]+/); return m ? m[0] : url; };
 
 function parseIndex(src) {
-    const body = src.replace(/^const\s+HOST\s*=.*?;\s*/m, '').replace(/^export\s+default\s+/, 'return ');
+    const body = src
+        .replace(/^const\s+HOST\s*=[^\n]*\n?/m, '')
+        .trim()
+        .replace(/export\s+default\s+/, 'return ');
     return new Function(body)();
 }
 function buildIndex(list) {
-    const H = "const HOST = (window.origin + window.location.pathname).replace(/\\/index.html$/, '/')";
+    const H = "const HOST = (window.origin + window.location.pathname).replace(/\\/index.html$/, '/');";
     const rows = list.map(f => {
-        const u = f._path.startsWith('http') ? JSON.stringify(f._path) : `HOST + ${JSON.stringify('/'+f._path)}`;
-        const img = f._img ? (f._img.startsWith('http') ? JSON.stringify(f._img) : `HOST + ${JSON.stringify('/'+f._img)}`) : (f.type==='image' ? u : "''");
+        const u = f._path.startsWith('http') ? JSON.stringify(f._path) : `HOST + ${JSON.stringify(f._path)}`;
+        const img = f._img ? (f._img.startsWith('http') ? JSON.stringify(f._img) : `HOST + ${JSON.stringify(f._img)}`) : (f.type==='image' ? u : "''");
         return `    { name: ${JSON.stringify(f.name)}, url: ${u}, image: ${img}, type: ${JSON.stringify(f.type)} }`;
     });
     return `${H}\n\nexport default [\n${rows.join(',\n')}\n];\n`;
