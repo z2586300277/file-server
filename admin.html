@@ -170,7 +170,11 @@ const TYPES = { jpg:'image',jpeg:'image',png:'image',gif:'image',bmp:'image',web
 const ext = n => { const i = n.lastIndexOf('.'); return i >= 0 ? n.slice(i+1).toLowerCase() : ''; };
 const fileType = n => TYPES[ext(n)] || 'file';
 const dir = t => t === 'image' ? 'images' : t;
-const pathKey = url => { const m = String(url||'').match(/(?:images|cover|model|video|audio|data|file)\/[^'"]+/); return m ? m[0] : url; };
+const pathKey = url => {
+    if (url == null || url === '') return '';
+    const m = String(url).match(/(?:images|cover|model|video|audio|data|file)\/[^'"]+/);
+    return m ? m[0] : String(url);
+};
 const idFromPath = p => (p || '').split('/').pop()?.replace(/\.[^.]+$/, '') || '';
 const validId = id => /^[a-zA-Z0-9_-]+$/.test(id);
 const filePath = (type, id, filename) => `${dir(type)}/${id}.${ext(filename)}`;
@@ -180,8 +184,8 @@ const COVER_MAX_W = 1080;
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 
 function normalizeEntry(f) {
-    const _path = pathKey(f.url);
-    const _img = pathKey(f.image);
+    const _path = f._path ?? pathKey(f.url);
+    const _img = f._img ?? pathKey(f.image);
     const id = f.id || idFromPath(_path);
     return { ...f, id, _path, _img };
 }
@@ -197,8 +201,10 @@ function parseIndex(src) {
 function buildIndex(list) {
     const H = "const HOST = (window.origin + window.location.pathname).replace(/\\/index.html$/, '/');";
     const rows = list.map(f => {
-        const u = f._path.startsWith('http') ? JSON.stringify(f._path) : `HOST + ${JSON.stringify(f._path)}`;
-        const img = f._img ? (f._img.startsWith('http') ? JSON.stringify(f._img) : `HOST + ${JSON.stringify(f._img)}`) : (f.type==='image' ? u : "''");
+        const path = f._path ?? pathKey(f.url) ?? '';
+        const imgPath = f._img ?? pathKey(f.image) ?? '';
+        const u = path.startsWith('http') ? JSON.stringify(path) : `HOST + ${JSON.stringify(path)}`;
+        const img = imgPath ? (imgPath.startsWith('http') ? JSON.stringify(imgPath) : `HOST + ${JSON.stringify(imgPath)}`) : (f.type==='image' ? u : "''");
         return `    { id: ${JSON.stringify(f.id)}, name: ${JSON.stringify(f.name)}, url: ${u}, image: ${img}, type: ${JSON.stringify(f.type)} }`;
     });
     return `${H}\n\nexport default [\n${rows.join(',\n')}\n];\n`;
