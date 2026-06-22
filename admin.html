@@ -298,9 +298,42 @@ function msg(text, ok) {
     el.className = 'msg ' + (ok ? 'ok' : 'err'); el.textContent = text;
 }
 
-let files = [], editId = null;
+let files = [], editId = null, editEntry = null;
 let coverFile = null;
 let saving = false;
+
+const getHost = () => (window.origin + window.location.pathname).replace(/\/index.html$/, '/');
+function assetUrl(pathOrUrl) {
+    if (!pathOrUrl) return '';
+    const s = String(pathOrUrl);
+    if (s.startsWith('http')) return s.replace(/([^:]\/)\/+/g, '$1');
+    return getHost() + s.replace(/^\//, '');
+}
+
+function showExistingMain(f) {
+    if (!f?._path) return;
+    const drop = $('main-drop');
+    drop.classList.add('has-file');
+    const iconEl = $('main-icon');
+    if (f.type === 'image') {
+        iconEl.innerHTML = `<img src="${assetUrl(f.url)}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px">`;
+    } else {
+        iconEl.textContent = FILE_ICONS[f.type] || '📄';
+    }
+    $('main-name').textContent = f._path;
+    $('main-meta').textContent = '当前文件 · 上传可替换';
+}
+
+function showExistingCover(f) {
+    const url = assetUrl(f.image || f._img);
+    if (!url) return;
+    coverFile = null;
+    const drop = $('cover-drop');
+    drop.classList.add('has-file');
+    $('cover-preview').src = url;
+    $('cover-name').textContent = f._img || 'cover';
+    $('cover-meta').textContent = '当前封面 · 上传可替换';
+}
 
 function setSaving(on) {
     saving = on;
@@ -314,10 +347,16 @@ function fmtSize(n) { return n < 1024 ? n + ' B' : n < 1048576 ? (n/1024).toFixe
 
 function setMainFile(file) {
     const drop = $('main-drop');
-    if (!file) { $('ffile').value = ''; drop.classList.remove('has-file'); updateCoverVisibility(''); return; }
+    if (!file) {
+        $('ffile').value = '';
+        drop.classList.remove('has-file');
+        $('main-icon').textContent = '📄';
+        updateCoverVisibility(editEntry?.type || '');
+        return;
+    }
     drop.classList.add('has-file');
     $('main-icon').textContent = FILE_ICONS[fileType(file.name)] || '📄';
-    $('main-name').textContent = file.name;
+    $('main-name').textContent = file.name + '（新）';
     $('main-meta').textContent = fmtSize(file.size);
     updateCoverVisibility(fileType(file.name));
 }
@@ -338,7 +377,7 @@ function setCoverFile(file) {
         return;
     }
     drop.classList.add('has-file');
-    $('cover-name').textContent = file.name;
+    $('cover-name').textContent = file.name + (coverFile ? '（新）' : '');
     $('cover-meta').textContent = fmtSize(file.size);
     const url = URL.createObjectURL(file);
     $('cover-preview').src = url;
@@ -422,6 +461,7 @@ function renderList() {
 
 function openForm(id) {
     editId = id || null;
+    editEntry = id ? files.find(x => x.id === id) : null;
     $('view-list').classList.add('hidden'); $('view-form').classList.remove('hidden');
     $('form-title').textContent = id ? '编辑' : '新增';
     $('file-hint').textContent = id ? '（不选则保留原文件；替换后删除旧文件）' : '*';
@@ -430,14 +470,18 @@ function openForm(id) {
     $('fid').readOnly = !!id;
     setMainFile(null);
     setCoverFile(null);
-    updateCoverVisibility(id ? (files.find(x => x.id === id)?.type || '') : '');
-    if (id) {
-        const f = files.find(x => x.id === id);
-        if (f) { $('fname').value = f.name; $('fid').value = f.id; }
+    if (editEntry) {
+        $('fname').value = editEntry.name;
+        $('fid').value = editEntry.id;
+        showExistingMain(editEntry);
+        if (editEntry._img || editEntry.image) showExistingCover(editEntry);
+        updateCoverVisibility(editEntry.type);
+    } else {
+        updateCoverVisibility('');
+        setTimeout(() => $('fid').focus(), 50);
     }
-    if (!id) setTimeout(() => $('fid').focus(), 50);
 }
-function closeForm() { editId = null; $('view-form').classList.add('hidden'); $('view-list').classList.remove('hidden'); }
+function closeForm() { editId = null; editEntry = null; $('view-form').classList.add('hidden'); $('view-list').classList.remove('hidden'); }
 
 async function saveForm() {
     if (saving) return;
@@ -506,8 +550,16 @@ function boot() {
     show('app');
     bindDropZone('main-drop', 'ffile');
     bindDropZone('cover-drop', 'fcover', null, true);
-    $('main-clear').onclick = e => { e.stopPropagation(); setMainFile(null); };
-    $('cover-clear').onclick = e => { e.stopPropagation(); setCoverFile(null); };
+    $('main-clear').onclick = e => {
+        e.stopPropagation();
+        setMainFile(null);
+        if (editEntry?._path) showExistingMain(editEntry);
+    };
+    $('cover-clear').onclick = e => {
+        e.stopPropagation();
+        setCoverFile(null);
+        if (editEntry && (editEntry._img || editEntry.image)) showExistingCover(editEntry);
+    };
     setupPasteCover();
     $('btn-new').onclick = () => openForm(null);
     $('btn-cancel').onclick = closeForm;
