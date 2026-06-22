@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件管理</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, sans-serif; background: #111; color: #eee; padding: 16px; max-width: 900px; margin: 0 auto; }
+        h1 { font-size: 1.25rem; margin-bottom: 16px; }
+        .bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+        input, button, select { padding: 8px 12px; border-radius: 6px; border: 1px solid #444; background: #222; color: #eee; font-size: 14px; }
+        button { cursor: pointer; background: #333; }
+        button.primary { background: #2563eb; border-color: #2563eb; }
+        button:hover { filter: brightness(1.1); }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #333; }
+        .muted { color: #888; font-size: 12px; }
+        .panel { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+        label { display: block; margin: 12px 0 6px; font-size: 13px; color: #aaa; }
+        .hidden { display: none !important; }
+        .msg { padding: 10px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; }
+        .msg.err { background: #3f1515; color: #fca5a5; }
+        .msg.ok { background: #14321f; color: #86efac; }
+        a { color: #60a5fa; }
+    </style>
+</head>
+<body>
+    <div id="login" class="panel">
+        <h1>登录</h1>
+        <label>口令</label>
+        <input id="pass" type="password" placeholder="管理口令" style="width:100%">
+        <div class="bar" style="margin-top:12px"><button class="primary" id="btn-login">进入</button></div>
+    </div>
+
+    <div id="app" class="hidden">
+        <div class="bar">
+            <h1 style="flex:1">文件管理</h1>
+            <button id="btn-new" class="primary">+ 新增</button>
+            <button id="btn-refresh">刷新</button>
+            <a href="index.html">返回首页</a>
+        </div>
+        <div id="msg"></div>
+
+        <div id="view-list">
+            <div class="bar">
+                <input id="search" placeholder="搜索名称..." style="flex:1">
+                <select id="filter-type"><option value="">全部类型</option></select>
+            </div>
+            <table>
+                <thead><tr><th>名称</th><th>类型</th><th>路径</th><th></th></tr></thead>
+                <tbody id="tbody"></tbody>
+            </table>
+        </div>
+
+        <div id="view-form" class="panel hidden">
+            <h1 id="form-title">新增</h1>
+            <label>名称 *</label>
+            <input id="fname" style="width:100%">
+            <label>资源文件 <span id="file-hint" class="muted"></span></label>
+            <input id="ffile" type="file">
+            <label>封面（可选，模型等可上传预览图，原样保存到 images/）</label>
+            <input id="fcover" type="file" accept="image/*">
+            <div class="bar" style="margin-top:16px">
+                <button class="primary" id="btn-save">保存到 GitHub</button>
+                <button id="btn-cancel">取消</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ========== 配置（改这里）==========
+const MASTER_KEY = 'file_server_key_z2586300277';
+const ENC_PASS = 'aFreRsqn0xRLXiiHGI86gVHeavMaCSONrPJGO/+AXXmwovzL6vv7bX3D1x+D';
+const ENC_TOKEN = 'aPOUiAVisKpMtkZawiXU1ODETj1Ncyk+TZRveO5ai//EF0teI16d9Ti0SgPfNPkgRx0EezarFbUx4WW91omR9WQCdyQ=';
+const GITHUB_REPO = 'z2586300277/file-server';
+const BRANCH = 'main';
+const INDEX = 'index.js';
+// ===================================
+
+const enc = new TextEncoder(), dec = new TextDecoder();
+async function cryptoKey(secret) {
+    const raw = await crypto.subtle.digest('SHA-256', enc.encode(secret));
+    return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
+}
+async function decrypt(b64, secret) {
+    const buf = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: buf.slice(0, 12) }, await cryptoKey(secret), buf.slice(12));
+    return dec.decode(plain);
+}
+
+let PASS = '', GITHUB_TOKEN = '';
+const $ = id => document.getElementById(id);
+const LS = { auth: 'fs_auth' };
+const TYPES = { jpg:'image',jpeg:'image',png:'image',gif:'image',bmp:'image',webp:'image',svg:'image', mp4:'video',webm:'video',mov:'video',avi:'video', mp3:'audio',wav:'audio',ogg:'audio', glb:'model',gltf:'model',fbx:'model',obj:'model', json:'data',hdr:'data' };
+
+const ext = n => { const i = n.lastIndexOf('.'); return i >= 0 ? n.slice(i+1).toLowerCase() : ''; };
+const fileType = n => TYPES[ext(n)] || 'file';
+const dir = t => t === 'image' ? 'images' : t;
+const pathKey = url => { const m = String(url||'').match(/(?:images|model|video|audio|data|file)\/[^'"]+/); return m ? m[0] : url; };
+
+function parseIndex(src) {
+    const body = src.replace(/^const\s+HOST\s*=.*?;\s*/m, '').replace(/^export\s+default\s+/, 'return ');
+    return new Function(body)();
+}
+function buildIndex(list) {
+    const H = "const HOST = (window.origin + window.location.pathname).replace(/\\/index.html$/, '/')";
+    const rows = list.map(f => {
+        const u = f._path.startsWith('http') ? JSON.stringify(f._path) : `HOST + ${JSON.stringify('/'+f._path)}`;
+        const img = f._img ? (f._img.startsWith('http') ? JSON.stringify(f._img) : `HOST + ${JSON.stringify('/'+f._img)}`) : (f.type==='image' ? u : "''");
+        return `    { name: ${JSON.stringify(f.name)}, url: ${u}, image: ${img}, type: ${JSON.stringify(f.type)} }`;
+    });
+    return `${H}\n\nexport default [\n${rows.join(',\n')}\n];\n`;
+}
+
+async function gh(method, path, token, body) {
+    const r = await fetch('https://api.github.com'+path, { method, headers: { Authorization:'Bearer '+token, Accept:'application/vnd.github+json', 'Content-Type':'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.message || r.statusText);
+    return data;
+}
+async function readIndex(token, repo) {
+    const f = await gh('GET', `/repos/${repo}/contents/${INDEX}?ref=${BRANCH}`, token);
+    return parseIndex(atob(f.content.replace(/\n/g, '')));
+}
+async function push(token, repo, blobs, indexText, msg) {
+    const ref = await gh('GET', `/repos/${repo}/git/ref/heads/${BRANCH}`, token);
+    const commit = await gh('GET', `/repos/${repo}/git/commits/${ref.object.sha}`, token);
+    const tree = [{ path:INDEX, mode:'100644', type:'blob', sha:(await gh('POST', `/repos/${repo}/git/blobs`, token, { content:indexText, encoding:'utf-8' })).sha }];
+    for (const b of blobs) tree.push({ path:b.path, mode:'100644', type:'blob', sha:(await gh('POST', `/repos/${repo}/git/blobs`, token, { content:b.base64, encoding:'base64' })).sha });
+    const newTree = await gh('POST', `/repos/${repo}/git/trees`, token, { base_tree:commit.tree.sha, tree });
+    const newCommit = await gh('POST', `/repos/${repo}/git/commits`, token, { message:msg, tree:newTree.sha, parents:[ref.object.sha] });
+    await gh('PATCH', `/repos/${repo}/git/refs/heads/${BRANCH}`, token, { sha:newCommit.sha });
+}
+const toBase64 = file => new Promise((ok, err) => { const r = new FileReader(); r.onload = () => ok(r.result.split(',')[1]); r.onerror = err; r.readAsDataURL(file); });
+
+function msg(text, ok) {
+    const el = $('msg');
+    if (!text) { el.className = 'msg hidden'; el.textContent = ''; return; }
+    el.className = 'msg ' + (ok ? 'ok' : 'err'); el.textContent = text;
+}
+
+let files = [], editPath = null;
+const show = id => ['login','app'].forEach(x => $(x).classList.toggle('hidden', x !== id));
+const cfg = () => ({ token: GITHUB_TOKEN, repo: GITHUB_REPO });
+
+async function loadList() {
+    const { token, repo } = cfg();
+    msg('加载中...', true);
+    try {
+        files = (await readIndex(token, repo)).map(f => ({ ...f, _path: pathKey(f.url), _img: pathKey(f.image) }));
+        renderList(); msg('');
+    } catch (e) { msg(e.message); }
+}
+
+function renderList() {
+    const q = $('search').value.trim().toLowerCase(), t = $('filter-type').value;
+    const types = [...new Set(files.map(f => f.type))].sort();
+    $('filter-type').innerHTML = '<option value="">全部类型</option>' + types.map(x => `<option value="${x}">${x}</option>`).join('');
+    $('filter-type').value = t;
+    $('tbody').innerHTML = files.filter(f => (!t || f.type===t) && (!q || f.name.toLowerCase().includes(q)))
+        .map(f => `<tr><td>${f.name}</td><td>${f.type}</td><td class="muted">${f._path}</td><td><button data-edit="${encodeURIComponent(f._path)}">编辑</button></td></tr>`).join('');
+}
+
+function openForm(path) {
+    editPath = path || null;
+    $('view-list').classList.add('hidden'); $('view-form').classList.remove('hidden');
+    $('form-title').textContent = path ? '编辑' : '新增';
+    $('file-hint').textContent = path ? '（不选则保留原文件）' : '*';
+    $('fname').value = ''; $('ffile').value = ''; $('fcover').value = '';
+    if (path) { const f = files.find(x => x._path === path); if (f) $('fname').value = f.name; }
+}
+function closeForm() { editPath = null; $('view-form').classList.add('hidden'); $('view-list').classList.remove('hidden'); }
+
+async function saveForm() {
+    const name = $('fname').value.trim(), main = $('ffile').files[0], cover = $('fcover').files[0];
+    if (!name) return msg('请填写名称');
+    if (!editPath && !main) return msg('请选择资源文件');
+    const { token, repo } = cfg();
+    const blobs = [];
+    let relPath = editPath, relImg = editPath ? (files.find(f => f._path === editPath)?._img || '') : '', type = editPath ? files.find(f => f._path === editPath)?.type : '';
+    if (main) { type = fileType(main.name); relPath = `${dir(type)}/${main.name}`; blobs.push({ path: relPath, base64: await toBase64(main) }); }
+    if (cover) { relImg = `images/${cover.name}`; blobs.push({ path: relImg, base64: await toBase64(cover) }); }
+    else if (type === 'image' && relPath) relImg = relPath;
+    const map = new Map(files.map(f => [f._path, { ...f, _path: f._path, _img: f._img || pathKey(f.image) }]));
+    if (editPath && editPath !== relPath) map.delete(editPath);
+    map.set(relPath, { name, type, _path: relPath, _img: relImg });
+    const list = [...map.values()];
+    msg('推送中...', true); $('btn-save').disabled = true;
+    try {
+        await push(token, repo, blobs, buildIndex(list), editPath ? `update: ${name}` : `add: ${name}`);
+        files = list; closeForm(); renderList(); msg('已保存', true); setTimeout(() => msg(''), 2000);
+    } catch (e) { msg(e.message); } finally { $('btn-save').disabled = false; }
+}
+
+function boot() {
+    if (localStorage.getItem(LS.auth) !== '1') {
+        show('login');
+        $('btn-login').onclick = () => { if ($('pass').value === PASS) { localStorage.setItem(LS.auth, '1'); boot(); } else alert('口令错误'); };
+        return;
+    }
+    if (!GITHUB_TOKEN) { alert('解密失败，请检查 ENC_TOKEN 与 MASTER_KEY'); return; }
+    show('app');
+    $('btn-new').onclick = () => openForm(null);
+    $('btn-cancel').onclick = closeForm;
+    $('btn-save').onclick = saveForm;
+    $('btn-refresh').onclick = loadList;
+    $('search').oninput = renderList;
+    $('filter-type').onchange = renderList;
+    $('tbody').onclick = e => { if (e.target.dataset.edit) openForm(decodeURIComponent(e.target.dataset.edit)); };
+    loadList();
+}
+
+(async () => {
+    try {
+        PASS = await decrypt(ENC_PASS, MASTER_KEY);
+        GITHUB_TOKEN = await decrypt(ENC_TOKEN, MASTER_KEY);
+        boot();
+    } catch (e) { alert('配置解密失败：' + e.message); }
+})();
+</script>
+</body>
+</html>

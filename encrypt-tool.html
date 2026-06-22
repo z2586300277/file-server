@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>加密工具</title>
+    <style>
+        body { font-family: system-ui; background: #111; color: #eee; padding: 24px; max-width: 560px; margin: 0 auto; }
+        input, textarea, button { width: 100%; padding: 10px; margin: 8px 0; border-radius: 6px; border: 1px solid #444; background: #222; color: #eee; box-sizing: border-box; }
+        button { cursor: pointer; background: #2563eb; border: none; }
+        label { font-size: 13px; color: #aaa; }
+        .out { font-size: 12px; word-break: break-all; background: #1a1a1a; padding: 10px; border-radius: 6px; }
+    </style>
+</head>
+<body>
+    <h1>生成密文（填进 admin.html）</h1>
+    <label>MASTER_KEY</label>
+    <input id="key" value="file_server_key_z2586300277">
+    <label>明文</label>
+    <textarea id="plain" rows="3"></textarea>
+    <button id="go">加密</button>
+    <label>密文</label>
+    <div class="out" id="out">—</div>
+<script>
+const enc = new TextEncoder();
+async function encrypt(text, secret) {
+    const raw = await crypto.subtle.digest('SHA-256', enc.encode(secret));
+    const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt']);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(text));
+    const out = new Uint8Array(iv.length + cipher.byteLength);
+    out.set(iv, 0); out.set(new Uint8Array(cipher), iv.length);
+    return btoa(String.fromCharCode(...out));
+}
+document.getElementById('go').onclick = async () => {
+    const key = document.getElementById('key').value, plain = document.getElementById('plain').value;
+    if (!key || !plain) return alert('请填写');
+    document.getElementById('out').textContent = await encrypt(plain, key);
+};
+</script>
+</body>
+</html>
