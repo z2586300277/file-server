@@ -9,12 +9,6 @@
 | `index.html` | 公开列表页 |
 | `admin.html` | 管理页（单文件，列表 / 新增 / 编辑，直推 GitHub） |
 
-## 使用
-
-1. 部署到 GitHub Pages
-2. 在 `admin.html` 顶部 `<script>` 配置区填写 `ENC_TOKEN` 等（用 `encrypt-tool.html` 生成密文）
-3. 打开 `admin.html`，口令见解密后的 `ENC_PASS`
-
 ## 条目格式（index.js）
 
 ```js
