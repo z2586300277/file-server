@@ -6,5 +6,6 @@ export default [
     { id: "camera_video", name: "监控视频", url: HOST + "video/camera_video.mp4", image: '', type: "video" },
     { id: "hdrSky", name: "天空", url: HOST + "data/hdrSky.hdr", image: HOST + "cover/hdrSky.webp", type: "data" },
     { id: "bg_music", name: "背景音乐", url: HOST + "audio/bg_music.mp3", image: '', type: "audio" },
-    { id: "font_en", name: "英文字体", url: HOST + "data/font_en.json", image: '', type: "data" }
+    { id: "font_en", name: "英文字体", url: HOST + "data/font_en.json", image: '', type: "data" },
+    { id: "konglong", name: "恐龙", url: HOST + "model/konglong.fbx", image: HOST + "cover/konglong.webp", type: "model" }
 ];
