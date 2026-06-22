@@ -53,6 +53,7 @@
         .cover-drop:focus { outline: none; }
         .form-actions { display: flex; gap: 10px; margin-top: 24px; padding-top: 20px; border-top: 1px solid #2a2a2a; }
         .form-actions button { padding: 10px 20px; border-radius: 8px; }
+        .form-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -266,7 +267,7 @@ async function compressCoverToWebp(file) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     let best = null;
-    for (let scale = 1; scale >= 0.25; scale -= 0.15) {
+    for (let scale = 1; scale >= 0.15; scale -= 0.1) {
         canvas.width = Math.max(1, Math.round(w * scale));
         canvas.height = Math.max(1, Math.round(h * scale));
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -277,8 +278,8 @@ async function compressCoverToWebp(file) {
             if (!best || blob.size < best.size) best = blob;
         }
     }
-    if (best) return best;
-    throw new Error('无法压缩到 10KB 以内，请换更小截图');
+    if (best && best.size <= COVER_MAX) return best;
+    throw new Error(`无法压到 10KB（最小 ${((best?.size || 0)/1024).toFixed(1)}KB），请换更小截图`);
 }
 
 async function processCover(raw, id) {
@@ -299,6 +300,14 @@ function msg(text, ok) {
 
 let files = [], editId = null;
 let coverFile = null;
+let saving = false;
+
+function setSaving(on) {
+    saving = on;
+    $('btn-save').disabled = on;
+    $('btn-save').textContent = on ? '推送中...' : '保存到 GitHub';
+    $('btn-cancel').disabled = on;
+}
 
 const FILE_ICONS = { model:'🎮', video:'🎬', audio:'🎵', image:'🖼️', data:'📊', file:'📄' };
 function fmtSize(n) { return n < 1024 ? n + ' B' : n < 1048576 ? (n/1024).toFixed(1)+' KB' : (n/1048576).toFixed(1)+' MB'; }
@@ -431,34 +440,46 @@ function openForm(id) {
 function closeForm() { editId = null; $('view-form').classList.add('hidden'); $('view-list').classList.remove('hidden'); }
 
 async function saveForm() {
+    if (saving) return;
     const id = $('fid').value.trim(), name = $('fname').value.trim();
-    const main = $('ffile').files[0], cover = coverFile || $('fcover').files[0];
+    const main = $('ffile').files[0];
+    const rawCover = coverFile || $('fcover').files[0];
     if (!id || !validId(id)) return msg('请填写有效 ID（字母、数字、_ -）');
     if (!name) return msg('请填写名称');
     if (!editId && !main) return msg('请选择资源文件');
     if (!editId && files.some(f => f.id === id)) return msg('ID 已存在');
 
+    setSaving(true);
+    msg('处理中...', true);
+    try {
     const old = editId ? files.find(f => f.id === editId) : null;
     const { token, repo } = cfg();
     const blobs = [], toDelete = [];
     let relPath = old?._path || '', relImg = old?._img || '', type = old?.type || '';
 
     if (main) {
-        if (!ext(main.name)) return msg('文件需要有扩展名');
+        if (!ext(main.name)) { msg('文件需要有扩展名'); return; }
         type = fileType(main.name);
         const newPath = filePath(type, id, main.name);
         if (old?._path && old._path !== newPath) toDelete.push(old._path);
         relPath = newPath;
         blobs.push({ path: relPath, base64: await toBase64(main) });
     } else if (!editId) {
-        return msg('请选择资源文件');
+        msg('请选择资源文件'); return;
     }
 
-    if (cover && type !== 'image') {
+    if (rawCover && type !== 'image') {
+        msg('封面压缩中...', true);
+        let blob;
+        try {
+            blob = await compressCoverToWebp(rawCover);
+        } catch (e) {
+            msg(e.message); return;
+        }
         const newImg = coverPath(id);
         if (old?._img && old._img !== newImg) toDelete.push(old._img);
         relImg = newImg;
-        blobs.push({ path: relImg, base64: await toBase64(cover) });
+        blobs.push({ path: relImg, base64: await toBase64(new File([blob], `${id}.webp`, { type: 'image/webp' })) });
     } else if (type === 'image' && relPath) {
         relImg = relPath;
     }
@@ -469,11 +490,10 @@ async function saveForm() {
     const list = [...map.values()];
     const uniqueDeletes = [...new Set(toDelete.filter(p => p && !blobs.some(b => b.path === p)))];
 
-    msg('推送中...', true); $('btn-save').disabled = true;
-    try {
+    msg('推送到 GitHub...', true);
         await push(token, repo, blobs, uniqueDeletes, buildIndex(list), editId ? `update: ${id}` : `add: ${id}`);
         files = list; closeForm(); renderList(); msg('已保存', true); setTimeout(() => msg(''), 2000);
-    } catch (e) { msg(e.message); } finally { $('btn-save').disabled = false; }
+    } catch (e) { msg(e.message); } finally { setSaving(false); }
 }
 
 function boot() {
