@@ -115,13 +115,13 @@
                 </div>
             </div>
             <div class="field" id="cover-field">
-                <label>封面 <span class="muted">（可选，模型预览图 · 支持 Ctrl+V 粘贴）</span></label>
+                <label>封面 <span class="muted">（可选，自动压缩 webp ≤10KB · 支持 Ctrl+V 粘贴）</span></label>
                 <div class="drop cover-drop" id="cover-drop" tabindex="0">
                     <input id="fcover" type="file" accept="image/*">
                     <div class="drop-inner">
                         <div class="drop-icon">🖼️</div>
                         <div class="drop-title">点击、拖拽或 Ctrl+V 粘贴图片</div>
-                        <div class="drop-hint">原样保存到 cover/</div>
+                        <div class="drop-hint">保存为 cover/{id}.webp，≤10KB</div>
                     </div>
                     <div class="drop-preview">
                         <img id="cover-preview" alt="">
@@ -173,7 +173,9 @@ const pathKey = url => { const m = String(url||'').match(/(?:images|cover|model|
 const idFromPath = p => (p || '').split('/').pop()?.replace(/\.[^.]+$/, '') || '';
 const validId = id => /^[a-zA-Z0-9_-]+$/.test(id);
 const filePath = (type, id, filename) => `${dir(type)}/${id}.${ext(filename)}`;
-const coverPath = (id, filename) => `cover/${id}.${ext(filename)}`;
+const coverPath = (id) => `cover/${id}.webp`;
+const COVER_MAX = 10 * 1024;
+const COVER_MAX_W = 1080;
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 
 function normalizeEntry(f) {
@@ -248,6 +250,47 @@ async function push(token, repo, blobs, deletes, indexText, msg) {
 }
 const toBase64 = file => new Promise((ok, err) => { const r = new FileReader(); r.onload = () => ok(r.result.split(',')[1]); r.onerror = err; r.readAsDataURL(file); });
 
+async function loadImage(file) {
+    const url = URL.createObjectURL(file);
+    try {
+        const img = new Image();
+        await new Promise((ok, err) => { img.onload = ok; img.onerror = err; img.src = url; });
+        return img;
+    } finally { URL.revokeObjectURL(url); }
+}
+
+async function compressCoverToWebp(file) {
+    const img = await loadImage(file);
+    let w = img.width, h = img.height;
+    if (w > COVER_MAX_W) { h = Math.round(h * COVER_MAX_W / w); w = COVER_MAX_W; }
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    let best = null;
+    for (let scale = 1; scale >= 0.25; scale -= 0.15) {
+        canvas.width = Math.max(1, Math.round(w * scale));
+        canvas.height = Math.max(1, Math.round(h * scale));
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        for (let q = 0.85; q >= 0.05; q -= 0.05) {
+            const blob = await new Promise(r => canvas.toBlob(r, 'image/webp', q));
+            if (!blob) continue;
+            if (blob.size <= COVER_MAX) return blob;
+            if (!best || blob.size < best.size) best = blob;
+        }
+    }
+    if (best) return best;
+    throw new Error('无法压缩到 10KB 以内，请换更小截图');
+}
+
+async function processCover(raw, id) {
+    msg('封面压缩中...', true);
+    try {
+        const blob = await compressCoverToWebp(raw);
+        setCoverFile(new File([blob], `${id}.webp`, { type: 'image/webp' }));
+        msg(`封面已压缩：${fmtSize(blob.size)}`, true);
+        setTimeout(() => msg(''), 2000);
+    } catch (e) { msg(e.message); }
+}
+
 function msg(text, ok) {
     const el = $('msg');
     if (!text) { el.className = 'msg hidden'; el.textContent = ''; return; }
@@ -306,7 +349,9 @@ function bindDropZone(dropId, inputId, onFile, isImage) {
         if (!f) return;
         if (isImage && !f.type.startsWith('image/')) return msg('请拖入图片文件');
         if (isImage) {
-            setCoverFile(f);
+            const id = $('fid').value.trim();
+            if (!id) return msg('请先填写 ID');
+            processCover(f, id);
         } else {
             const dt = new DataTransfer();
             dt.items.add(f);
@@ -317,7 +362,12 @@ function bindDropZone(dropId, inputId, onFile, isImage) {
     });
     input.addEventListener('change', () => {
         const f = input.files[0];
-        if (isImage) setCoverFile(f || null); else setMainFile(f || null);
+        if (isImage) {
+            if (!f) return setCoverFile(null);
+            const id = $('fid').value.trim();
+            if (!id) return msg('请先填写 ID');
+            processCover(f, id);
+        } else setMainFile(f || null);
         onFile?.(f);
     });
 }
@@ -333,10 +383,7 @@ function setupPasteCover() {
                 const id = $('fid').value.trim();
                 if (!id) return msg('请先填写 ID');
                 const blob = item.getAsFile();
-                const ext = blob.type.split('/')[1]?.replace('jpeg','jpg') || 'png';
-                setCoverFile(new File([blob], `${id}.${ext}`, { type: blob.type }));
-                msg('封面已粘贴', true);
-                setTimeout(() => msg(''), 1500);
+                processCover(blob, id);
                 return;
             }
         }
@@ -408,7 +455,7 @@ async function saveForm() {
     }
 
     if (cover && type !== 'image') {
-        const newImg = coverPath(id, cover.name);
+        const newImg = coverPath(id);
         if (old?._img && old._img !== newImg) toDelete.push(old._img);
         relImg = newImg;
         blobs.push({ path: relImg, base64: await toBase64(cover) });
