@@ -23,6 +23,36 @@
         .msg.err { background: #3f1515; color: #fca5a5; }
         .msg.ok { background: #14321f; color: #86efac; }
         a { color: #60a5fa; }
+        .form-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .field { margin-bottom: 18px; }
+        .field label { margin: 0 0 8px; font-size: 13px; color: #ccc; font-weight: 500; }
+        .field input[type="text"] { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #333; background: #141414; }
+        .field input[type="text"]:focus { outline: none; border-color: #2563eb; }
+        .drop {
+            position: relative; border: 1px dashed #444; border-radius: 12px; background: #141414;
+            min-height: 120px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: border-color .2s, background .2s; overflow: hidden;
+        }
+        .drop:hover, .drop.dragover, .drop:focus { border-color: #2563eb; background: #181f2e; }
+        .drop input[type="file"] { display: none; }
+        .drop-inner { text-align: center; padding: 20px; pointer-events: none; }
+        .drop-icon { font-size: 28px; margin-bottom: 8px; opacity: .85; }
+        .drop-title { font-size: 14px; color: #ddd; margin-bottom: 4px; }
+        .drop-hint { font-size: 12px; color: #666; }
+        .drop.has-file { border-style: solid; border-color: #2563eb33; }
+        .drop-preview { display: none; width: 100%; padding: 12px; gap: 12px; align-items: center; }
+        .drop.has-file .drop-inner { display: none; }
+        .drop.has-file .drop-preview { display: flex; }
+        .drop-preview img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; background: #222; }
+        .drop-preview .info { flex: 1; min-width: 0; }
+        .drop-preview .name { font-size: 13px; color: #eee; word-break: break-all; }
+        .drop-preview .meta { font-size: 12px; color: #888; margin-top: 4px; }
+        .drop-preview .clear { pointer-events: auto; padding: 4px 10px; font-size: 12px; border-radius: 6px; border: 1px solid #444; background: #222; color: #aaa; cursor: pointer; }
+        .drop-preview .clear:hover { color: #fff; border-color: #666; }
+        .cover-drop { min-height: 140px; }
+        .cover-drop:focus { outline: none; }
+        .form-actions { display: flex; gap: 10px; margin-top: 24px; padding-top: 20px; border-top: 1px solid #2a2a2a; }
+        .form-actions button { padding: 10px 20px; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -48,20 +78,62 @@
                 <select id="filter-type"><option value="">全部类型</option></select>
             </div>
             <table>
-                <thead><tr><th>名称</th><th>类型</th><th>路径</th><th></th></tr></thead>
+                <thead><tr><th>ID</th><th>名称</th><th>类型</th><th>路径</th><th></th></tr></thead>
                 <tbody id="tbody"></tbody>
             </table>
         </div>
 
         <div id="view-form" class="panel hidden">
-            <h1 id="form-title">新增</h1>
-            <label>名称 *</label>
-            <input id="fname" style="width:100%">
-            <label>资源文件 <span id="file-hint" class="muted"></span></label>
-            <input id="ffile" type="file">
-            <label>封面（可选，模型等可上传预览图，原样保存到 images/）</label>
-            <input id="fcover" type="file" accept="image/*">
-            <div class="bar" style="margin-top:16px">
+            <div class="form-head">
+                <h1 id="form-title" style="margin:0">新增</h1>
+            </div>
+            <div class="field">
+                <label>ID <span id="id-hint" class="muted">* 英文/数字/下划线，文件以此命名</span></label>
+                <input id="fid" type="text" placeholder="例如 fox、car01">
+            </div>
+            <div class="field">
+                <label>名称 *</label>
+                <input id="fname" type="text" placeholder="资源展示名称">
+            </div>
+            <div class="field">
+                <label>资源文件 <span id="file-hint" class="muted"></span></label>
+                <div class="drop" id="main-drop">
+                    <input id="ffile" type="file">
+                    <div class="drop-inner">
+                        <div class="drop-icon">📦</div>
+                        <div class="drop-title">点击或拖拽文件到此处</div>
+                        <div class="drop-hint">支持 glb / mp4 / jpg 等</div>
+                    </div>
+                    <div class="drop-preview">
+                        <div class="drop-icon" id="main-icon">📄</div>
+                        <div class="info">
+                            <div class="name" id="main-name"></div>
+                            <div class="meta" id="main-meta"></div>
+                        </div>
+                        <button type="button" class="clear" id="main-clear">移除</button>
+                    </div>
+                </div>
+            </div>
+            <div class="field" id="cover-field">
+                <label>封面 <span class="muted">（可选，模型预览图 · 支持 Ctrl+V 粘贴）</span></label>
+                <div class="drop cover-drop" id="cover-drop" tabindex="0">
+                    <input id="fcover" type="file" accept="image/*">
+                    <div class="drop-inner">
+                        <div class="drop-icon">🖼️</div>
+                        <div class="drop-title">点击、拖拽或 Ctrl+V 粘贴图片</div>
+                        <div class="drop-hint">原样保存到 cover/</div>
+                    </div>
+                    <div class="drop-preview">
+                        <img id="cover-preview" alt="">
+                        <div class="info">
+                            <div class="name" id="cover-name"></div>
+                            <div class="meta" id="cover-meta"></div>
+                        </div>
+                        <button type="button" class="clear" id="cover-clear">移除</button>
+                    </div>
+                </div>
+            </div>
+            <div class="form-actions">
                 <button class="primary" id="btn-save">保存到 GitHub</button>
                 <button id="btn-cancel">取消</button>
             </div>
@@ -97,40 +169,79 @@ const TYPES = { jpg:'image',jpeg:'image',png:'image',gif:'image',bmp:'image',web
 const ext = n => { const i = n.lastIndexOf('.'); return i >= 0 ? n.slice(i+1).toLowerCase() : ''; };
 const fileType = n => TYPES[ext(n)] || 'file';
 const dir = t => t === 'image' ? 'images' : t;
-const pathKey = url => { const m = String(url||'').match(/(?:images|model|video|audio|data|file)\/[^'"]+/); return m ? m[0] : url; };
+const pathKey = url => { const m = String(url||'').match(/(?:images|cover|model|video|audio|data|file)\/[^'"]+/); return m ? m[0] : url; };
+const idFromPath = p => (p || '').split('/').pop()?.replace(/\.[^.]+$/, '') || '';
+const validId = id => /^[a-zA-Z0-9_-]+$/.test(id);
+const filePath = (type, id, filename) => `${dir(type)}/${id}.${ext(filename)}`;
+const coverPath = (id, filename) => `cover/${id}.${ext(filename)}`;
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+
+function normalizeEntry(f) {
+    const _path = pathKey(f.url);
+    const _img = pathKey(f.image);
+    const id = f.id || idFromPath(_path);
+    return { ...f, id, _path, _img };
+}
 
 function parseIndex(src) {
+    const HOST = (window.origin + window.location.pathname).replace(/\/index.html$/, '/');
     const body = src
         .replace(/^const\s+HOST\s*=[^\n]*\n?/m, '')
         .trim()
         .replace(/export\s+default\s+/, 'return ');
-    return new Function(body)();
+    return new Function('HOST', body)(HOST);
 }
 function buildIndex(list) {
     const H = "const HOST = (window.origin + window.location.pathname).replace(/\\/index.html$/, '/');";
     const rows = list.map(f => {
         const u = f._path.startsWith('http') ? JSON.stringify(f._path) : `HOST + ${JSON.stringify(f._path)}`;
         const img = f._img ? (f._img.startsWith('http') ? JSON.stringify(f._img) : `HOST + ${JSON.stringify(f._img)}`) : (f.type==='image' ? u : "''");
-        return `    { name: ${JSON.stringify(f.name)}, url: ${u}, image: ${img}, type: ${JSON.stringify(f.type)} }`;
+        return `    { id: ${JSON.stringify(f.id)}, name: ${JSON.stringify(f.name)}, url: ${u}, image: ${img}, type: ${JSON.stringify(f.type)} }`;
     });
     return `${H}\n\nexport default [\n${rows.join(',\n')}\n];\n`;
 }
 
 async function gh(method, path, token, body) {
-    const r = await fetch('https://api.github.com'+path, { method, headers: { Authorization:'Bearer '+token, Accept:'application/vnd.github+json', 'Content-Type':'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    let r;
+    try {
+        r = await fetch('https://api.github.com' + path, {
+            method,
+            headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+            body: body ? JSON.stringify(body) : undefined,
+        });
+    } catch (e) {
+        throw new Error(e.message === 'Failed to fetch'
+            ? '无法连接 GitHub API，请检查网络（国内通常需要代理/VPN）'
+            : e.message);
+    }
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.message || r.statusText);
     return data;
 }
-async function readIndex(token, repo) {
-    const f = await gh('GET', `/repos/${repo}/contents/${INDEX}?ref=${BRANCH}`, token);
-    return parseIndex(atob(f.content.replace(/\n/g, '')));
+function b64ToUtf8(b64) {
+    const bin = atob(b64.replace(/\n/g, ''));
+    return new TextDecoder('utf-8').decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
 }
-async function push(token, repo, blobs, indexText, msg) {
+
+async function readIndex(token, repo) {
+    try {
+        const f = await gh('GET', `/repos/${repo}/contents/${INDEX}?ref=${BRANCH}`, token);
+        return parseIndex(b64ToUtf8(f.content));
+    } catch (e) {
+        const r = await fetch('./index.js');
+        if (r.ok) {
+            msg('GitHub 不可用，已读取本地 index.js（保存仍需连 GitHub）', true);
+            return parseIndex(await r.text());
+        }
+        throw e;
+    }
+}
+async function push(token, repo, blobs, deletes, indexText, msg) {
     const ref = await gh('GET', `/repos/${repo}/git/ref/heads/${BRANCH}`, token);
     const commit = await gh('GET', `/repos/${repo}/git/commits/${ref.object.sha}`, token);
     const tree = [{ path:INDEX, mode:'100644', type:'blob', sha:(await gh('POST', `/repos/${repo}/git/blobs`, token, { content:indexText, encoding:'utf-8' })).sha }];
     for (const b of blobs) tree.push({ path:b.path, mode:'100644', type:'blob', sha:(await gh('POST', `/repos/${repo}/git/blobs`, token, { content:b.base64, encoding:'base64' })).sha });
+    for (const p of deletes) tree.push({ path:p, mode:'100644', type:'blob', sha:null });
     const newTree = await gh('POST', `/repos/${repo}/git/trees`, token, { base_tree:commit.tree.sha, tree });
     const newCommit = await gh('POST', `/repos/${repo}/git/commits`, token, { message:msg, tree:newTree.sha, parents:[ref.object.sha] });
     await gh('PATCH', `/repos/${repo}/git/refs/heads/${BRANCH}`, token, { sha:newCommit.sha });
@@ -143,7 +254,95 @@ function msg(text, ok) {
     el.className = 'msg ' + (ok ? 'ok' : 'err'); el.textContent = text;
 }
 
-let files = [], editPath = null;
+let files = [], editId = null;
+let coverFile = null;
+
+const FILE_ICONS = { model:'🎮', video:'🎬', audio:'🎵', image:'🖼️', data:'📊', file:'📄' };
+function fmtSize(n) { return n < 1024 ? n + ' B' : n < 1048576 ? (n/1024).toFixed(1)+' KB' : (n/1048576).toFixed(1)+' MB'; }
+
+function setMainFile(file) {
+    const drop = $('main-drop');
+    if (!file) { $('ffile').value = ''; drop.classList.remove('has-file'); updateCoverVisibility(''); return; }
+    drop.classList.add('has-file');
+    $('main-icon').textContent = FILE_ICONS[fileType(file.name)] || '📄';
+    $('main-name').textContent = file.name;
+    $('main-meta').textContent = fmtSize(file.size);
+    updateCoverVisibility(fileType(file.name));
+}
+
+function updateCoverVisibility(type) {
+    const isImage = type === 'image';
+    $('cover-field').classList.toggle('hidden', isImage);
+    if (isImage) setCoverFile(null);
+}
+
+function setCoverFile(file) {
+    coverFile = file || null;
+    const drop = $('cover-drop');
+    if (!file) {
+        $('fcover').value = '';
+        drop.classList.remove('has-file');
+        $('cover-preview').removeAttribute('src');
+        return;
+    }
+    drop.classList.add('has-file');
+    $('cover-name').textContent = file.name;
+    $('cover-meta').textContent = fmtSize(file.size);
+    const url = URL.createObjectURL(file);
+    $('cover-preview').src = url;
+    $('cover-preview').onload = () => URL.revokeObjectURL(url);
+}
+
+function bindDropZone(dropId, inputId, onFile, isImage) {
+    const drop = $(dropId), input = $(inputId);
+    drop.addEventListener('click', e => {
+        if (e.target.closest('.clear')) return;
+        input.click();
+    });
+    ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('dragover'); }));
+    ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('dragover'); }));
+    drop.addEventListener('drop', e => {
+        const f = e.dataTransfer?.files?.[0];
+        if (!f) return;
+        if (isImage && !f.type.startsWith('image/')) return msg('请拖入图片文件');
+        if (isImage) {
+            setCoverFile(f);
+        } else {
+            const dt = new DataTransfer();
+            dt.items.add(f);
+            input.files = dt.files;
+            setMainFile(f);
+        }
+        onFile?.(f);
+    });
+    input.addEventListener('change', () => {
+        const f = input.files[0];
+        if (isImage) setCoverFile(f || null); else setMainFile(f || null);
+        onFile?.(f);
+    });
+}
+
+function setupPasteCover() {
+    document.addEventListener('paste', e => {
+        if ($('view-form').classList.contains('hidden')) return;
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                e.preventDefault();
+                const id = $('fid').value.trim();
+                if (!id) return msg('请先填写 ID');
+                const blob = item.getAsFile();
+                const ext = blob.type.split('/')[1]?.replace('jpeg','jpg') || 'png';
+                setCoverFile(new File([blob], `${id}.${ext}`, { type: blob.type }));
+                msg('封面已粘贴', true);
+                setTimeout(() => msg(''), 1500);
+                return;
+            }
+        }
+    });
+}
+
 const show = id => ['login','app'].forEach(x => $(x).classList.toggle('hidden', x !== id));
 const cfg = () => ({ token: GITHUB_TOKEN, repo: GITHUB_REPO });
 
@@ -151,7 +350,7 @@ async function loadList() {
     const { token, repo } = cfg();
     msg('加载中...', true);
     try {
-        files = (await readIndex(token, repo)).map(f => ({ ...f, _path: pathKey(f.url), _img: pathKey(f.image) }));
+        files = (await readIndex(token, repo)).map(normalizeEntry);
         renderList(); msg('');
     } catch (e) { msg(e.message); }
 }
@@ -161,37 +360,71 @@ function renderList() {
     const types = [...new Set(files.map(f => f.type))].sort();
     $('filter-type').innerHTML = '<option value="">全部类型</option>' + types.map(x => `<option value="${x}">${x}</option>`).join('');
     $('filter-type').value = t;
-    $('tbody').innerHTML = files.filter(f => (!t || f.type===t) && (!q || f.name.toLowerCase().includes(q)))
-        .map(f => `<tr><td>${f.name}</td><td>${f.type}</td><td class="muted">${f._path}</td><td><button data-edit="${encodeURIComponent(f._path)}">编辑</button></td></tr>`).join('');
+    $('tbody').innerHTML = files.filter(f => (!t || f.type===t) && (!q || f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q)))
+        .map(f => `<tr><td class="muted">${esc(f.id)}</td><td>${esc(f.name)}</td><td>${esc(f.type)}</td><td class="muted">${esc(f._path)}</td><td><button data-edit="${encodeURIComponent(f.id)}">编辑</button></td></tr>`).join('');
 }
 
-function openForm(path) {
-    editPath = path || null;
+function openForm(id) {
+    editId = id || null;
     $('view-list').classList.add('hidden'); $('view-form').classList.remove('hidden');
-    $('form-title').textContent = path ? '编辑' : '新增';
-    $('file-hint').textContent = path ? '（不选则保留原文件）' : '*';
-    $('fname').value = ''; $('ffile').value = ''; $('fcover').value = '';
-    if (path) { const f = files.find(x => x._path === path); if (f) $('fname').value = f.name; }
+    $('form-title').textContent = id ? '编辑' : '新增';
+    $('file-hint').textContent = id ? '（不选则保留原文件；替换后删除旧文件）' : '*';
+    $('id-hint').textContent = id ? '（不可修改）' : '* 英文/数字/下划线，文件以此命名';
+    $('fname').value = ''; $('fid').value = '';
+    $('fid').readOnly = !!id;
+    setMainFile(null);
+    setCoverFile(null);
+    updateCoverVisibility(id ? (files.find(x => x.id === id)?.type || '') : '');
+    if (id) {
+        const f = files.find(x => x.id === id);
+        if (f) { $('fname').value = f.name; $('fid').value = f.id; }
+    }
+    if (!id) setTimeout(() => $('fid').focus(), 50);
 }
-function closeForm() { editPath = null; $('view-form').classList.add('hidden'); $('view-list').classList.remove('hidden'); }
+function closeForm() { editId = null; $('view-form').classList.add('hidden'); $('view-list').classList.remove('hidden'); }
 
 async function saveForm() {
-    const name = $('fname').value.trim(), main = $('ffile').files[0], cover = $('fcover').files[0];
+    const id = $('fid').value.trim(), name = $('fname').value.trim();
+    const main = $('ffile').files[0], cover = coverFile || $('fcover').files[0];
+    if (!id || !validId(id)) return msg('请填写有效 ID（字母、数字、_ -）');
     if (!name) return msg('请填写名称');
-    if (!editPath && !main) return msg('请选择资源文件');
+    if (!editId && !main) return msg('请选择资源文件');
+    if (!editId && files.some(f => f.id === id)) return msg('ID 已存在');
+
+    const old = editId ? files.find(f => f.id === editId) : null;
     const { token, repo } = cfg();
-    const blobs = [];
-    let relPath = editPath, relImg = editPath ? (files.find(f => f._path === editPath)?._img || '') : '', type = editPath ? files.find(f => f._path === editPath)?.type : '';
-    if (main) { type = fileType(main.name); relPath = `${dir(type)}/${main.name}`; blobs.push({ path: relPath, base64: await toBase64(main) }); }
-    if (cover) { relImg = `images/${cover.name}`; blobs.push({ path: relImg, base64: await toBase64(cover) }); }
-    else if (type === 'image' && relPath) relImg = relPath;
-    const map = new Map(files.map(f => [f._path, { ...f, _path: f._path, _img: f._img || pathKey(f.image) }]));
-    if (editPath && editPath !== relPath) map.delete(editPath);
-    map.set(relPath, { name, type, _path: relPath, _img: relImg });
+    const blobs = [], toDelete = [];
+    let relPath = old?._path || '', relImg = old?._img || '', type = old?.type || '';
+
+    if (main) {
+        if (!ext(main.name)) return msg('文件需要有扩展名');
+        type = fileType(main.name);
+        const newPath = filePath(type, id, main.name);
+        if (old?._path && old._path !== newPath) toDelete.push(old._path);
+        relPath = newPath;
+        blobs.push({ path: relPath, base64: await toBase64(main) });
+    } else if (!editId) {
+        return msg('请选择资源文件');
+    }
+
+    if (cover && type !== 'image') {
+        const newImg = coverPath(id, cover.name);
+        if (old?._img && old._img !== newImg) toDelete.push(old._img);
+        relImg = newImg;
+        blobs.push({ path: relImg, base64: await toBase64(cover) });
+    } else if (type === 'image' && relPath) {
+        relImg = relPath;
+    }
+
+    const entry = { id, name, type, _path: relPath, _img: relImg };
+    const map = new Map(files.map(f => [f.id, normalizeEntry(f)]));
+    map.set(id, entry);
     const list = [...map.values()];
+    const uniqueDeletes = [...new Set(toDelete.filter(p => p && !blobs.some(b => b.path === p)))];
+
     msg('推送中...', true); $('btn-save').disabled = true;
     try {
-        await push(token, repo, blobs, buildIndex(list), editPath ? `update: ${name}` : `add: ${name}`);
+        await push(token, repo, blobs, uniqueDeletes, buildIndex(list), editId ? `update: ${id}` : `add: ${id}`);
         files = list; closeForm(); renderList(); msg('已保存', true); setTimeout(() => msg(''), 2000);
     } catch (e) { msg(e.message); } finally { $('btn-save').disabled = false; }
 }
@@ -204,6 +437,11 @@ function boot() {
     }
     if (!GITHUB_TOKEN) { alert('解密失败，请检查 ENC_TOKEN 与 MASTER_KEY'); return; }
     show('app');
+    bindDropZone('main-drop', 'ffile');
+    bindDropZone('cover-drop', 'fcover', null, true);
+    $('main-clear').onclick = e => { e.stopPropagation(); setMainFile(null); };
+    $('cover-clear').onclick = e => { e.stopPropagation(); setCoverFile(null); };
+    setupPasteCover();
     $('btn-new').onclick = () => openForm(null);
     $('btn-cancel').onclick = closeForm;
     $('btn-save').onclick = saveForm;

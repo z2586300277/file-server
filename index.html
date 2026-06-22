@@ -293,12 +293,16 @@
             return names[type] || '其他文件';
         }
 
+        function fixUrl(url) {
+            return String(url).replace(/([^:]\/)\/+/g, '$1');
+        }
+
         function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => {
+            navigator.clipboard.writeText(fixUrl(text)).then(() => {
                 showToast('链接已复制到剪贴板！');
             }).catch(() => {
                 const textArea = document.createElement('textarea');
-                textArea.value = text;
+                textArea.value = fixUrl(text);
                 document.body.appendChild(textArea);
                 textArea.select();
                 document.execCommand('copy');
@@ -321,7 +325,7 @@
         }
 
         function accessFile(url) {
-            window.open(url, '_blank');
+            window.open(fixUrl(url), '_blank');
             showToast('正在访问文件...');
         }
 
@@ -349,7 +353,7 @@
 
             if (type === 'image') {
                 const img = document.createElement('img');
-                img.src = file.image || file.url;
+                img.src = fixUrl(file.image || file.url);
                 img.alt = file.name;
                 img.onerror = () => {
                     preview.innerHTML = `<span class="icon">${icon}</span>`;
@@ -357,7 +361,7 @@
                 preview.appendChild(img);
             } else if (type === 'video') {
                 const video = document.createElement('video');
-                video.src = file.url;
+                video.src = fixUrl(file.url);
                 video.muted = true;
                 video.loop = true;
                 video.onerror = () => {
@@ -375,7 +379,7 @@
                 const previewUrl = file.image || '';
                 if (previewUrl) {
                     const img = document.createElement('img');
-                    img.src = previewUrl;
+                    img.src = fixUrl(previewUrl);
                     img.alt = file.name;
                     img.onerror = () => { preview.innerHTML = `<span class="icon">${icon}</span>`; };
                     preview.appendChild(img);
