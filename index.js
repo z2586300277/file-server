@@ -11,5 +11,6 @@ export default [
     { id: "chanxian", name: "产线模型", url: HOST + "model/chanxian.glb", image: HOST + "cover/chanxian.webp", type: "model" },
     { id: "elegant", name: "优雅永不过时", url: HOST + "images/elegant.jpg", image: HOST + "images/elegant.jpg", type: "image" },
     { id: "normal", name: "法线贴图", url: HOST + "images/normal.jpg", image: HOST + "images/normal.jpg", type: "image" },
-    { id: "snow", name: "雪花", url: HOST + "images/snow.png", image: HOST + "images/snow.png", type: "image" }
+    { id: "snow", name: "雪花", url: HOST + "images/snow.png", image: HOST + "images/snow.png", type: "image" },
+    { id: "china_geo_json", name: "中国geojson", url: HOST + "data/china_geo_json.json", image: HOST + "cover/china_geo_json.webp", type: "data" }
 ];
