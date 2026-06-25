@@ -14,5 +14,6 @@ export default [
     { id: "snow", name: "雪花", url: HOST + "images/snow.png", image: HOST + "images/snow.png", type: "image" },
     { id: "china_geo_json", name: "中国geojson", url: HOST + "data/china_geo_json.json", image: HOST + "cover/china_geo_json.webp", type: "data" },
     { id: "china_geo_bound", name: "中国边界geojson", url: HOST + "data/china_geo_bound.json", image: HOST + "cover/china_geo_bound.webp", type: "data" },
-    { id: "vrVideo", name: "vr全景视频", url: HOST + "video/vrVideo.mp4", image: '', type: "video" }
+    { id: "vrVideo", name: "vr全景视频", url: HOST + "video/vrVideo.mp4", image: '', type: "video" },
+    { id: "bjyhhg", name: "北京优悦幻光科技", url: HOST + "file/bjyhhg.pptx", image: '', type: "file" }
 ];
