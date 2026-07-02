@@ -16,5 +16,6 @@ export default [
     { id: "china_geo_bound", name: "中国边界geojson", url: HOST + "data/china_geo_bound.json", image: HOST + "cover/china_geo_bound.webp", type: "data" },
     { id: "vrVideo", name: "vr全景视频", url: HOST + "video/vrVideo.mp4", image: '', type: "video" },
     { id: "bjyhhg", name: "北京优悦幻光科技", url: HOST + "file/bjyhhg.pptx", image: '', type: "file" },
-    { id: "map_test", name: "木材贴图", url: HOST + "images/map_test.jpg", image: HOST + "images/map_test.jpg", type: "image" }
+    { id: "map_test", name: "木材贴图", url: HOST + "images/map_test.jpg", image: HOST + "images/map_test.jpg", type: "image" },
+    { id: "map_roughness", name: "粗糙度贴图", url: HOST + "images/map_roughness.jpg", image: HOST + "images/map_roughness.jpg", type: "image" }
 ];
