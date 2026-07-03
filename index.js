@@ -19,5 +19,6 @@ export default [
     { id: "map_test", name: "木材贴图", url: HOST + "images/map_test.jpg", image: HOST + "images/map_test.jpg", type: "image" },
     { id: "map_roughness", name: "粗糙度贴图", url: HOST + "images/map_roughness.jpg", image: HOST + "images/map_roughness.jpg", type: "image" },
     { id: "map_metalness", name: "金属度贴图", url: HOST + "images/map_metalness.jpg", image: HOST + "images/map_metalness.jpg", type: "image" },
-    { id: "map_emissive", name: "自发光贴图", url: HOST + "images/map_emissive.jpg", image: HOST + "images/map_emissive.jpg", type: "image" }
+    { id: "map_emissive", name: "自发光贴图", url: HOST + "images/map_emissive.jpg", image: HOST + "images/map_emissive.jpg", type: "image" },
+    { id: "map_ao", name: "环境遮蔽贴图", url: HOST + "images/map_ao.png", image: HOST + "images/map_ao.png", type: "image" }
 ];
