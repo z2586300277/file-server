@@ -1,13 +1,6 @@
 # file-server
 
-3D / 多媒体静态资源库，GitHub Pages 托管。
-
-## 页面
-
-| 文件 | 说明 |
-|------|------|
-| `index.html` | 公开列表页 |
-| `admin.html` | 管理页（单文件，列表 / 新增 / 编辑，直推 GitHub） |
+https://z2586300277.github.io/file-server/
 
 ## 条目格式（index.js）
 
