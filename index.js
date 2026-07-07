@@ -21,5 +21,6 @@ export default [
     { id: "map_metalness", name: "金属度贴图", url: HOST + "images/map_metalness.jpg", image: HOST + "images/map_metalness.jpg", type: "image" },
     { id: "map_emissive", name: "自发光贴图", url: HOST + "images/map_emissive.jpg", image: HOST + "images/map_emissive.jpg", type: "image" },
     { id: "map_ao", name: "环境遮蔽贴图", url: HOST + "images/map_ao.png", image: HOST + "images/map_ao.png", type: "image" },
-    { id: "snow_map", name: "雪花", url: HOST + "images/snow_map.png", image: HOST + "images/snow_map.png", type: "image" }
+    { id: "snow_map", name: "雪花", url: HOST + "images/snow_map.png", image: HOST + "images/snow_map.png", type: "image" },
+    { id: "city_white_model", name: "城市白模型", url: HOST + "model/city_white_model.fbx", image: HOST + "cover/city_white_model.webp", type: "model" }
 ];
