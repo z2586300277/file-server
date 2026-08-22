@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>压舱 — 文档压缩</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --bg-2: #171e26;
+      --ink: #e8edf2;
+      --muted: #8b98a8;
+      --line: rgba(232, 237, 242, 0.12);
+      --accent: #e8a04a;
+      --accent-dim: rgba(232, 160, 74, 0.15);
+      --ok: #5dbe8a;
+      --danger: #e07a6a;
+      --radius: 14px;
+      --font: "Instrument Sans", system-ui, sans-serif;
+      --display: "Syne", sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(232, 160, 74, 0.14), transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, rgba(93, 190, 138, 0.08), transparent 50%),
+        linear-gradient(165deg, #0c1015 0%, #141b23 45%, #0f1419 100%);
+      background-attachment: fixed;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      z-index: 0;
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: min(720px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 48px 0 64px;
+    }
+
+    header { margin-bottom: 36px; animation: rise 0.6s ease both; }
+
+    .brand {
+      font-family: var(--display);
+      font-weight: 800;
+      font-size: clamp(2.4rem, 6vw, 3.2rem);
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin-bottom: 10px;
+    }
+
+    .brand span { color: var(--accent); }
+
+    .tagline {
+      color: var(--muted);
+      font-size: 1.05rem;
+      max-width: 36ch;
+      line-height: 1.5;
+    }
+
+    .panel {
+      background: color-mix(in srgb, var(--bg-2) 88%, transparent);
+      border: 1px solid var(--line);
+      border-radius: calc(var(--radius) + 4px);
+      padding: 22px;
+      backdrop-filter: blur(10px);
+      animation: rise 0.7s ease 0.08s both;
+    }
+
+    .drop {
+      border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, var(--line));
+      border-radius: var(--radius);
+      background: var(--accent-dim);
+      padding: 42px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s, transform 0.2s;
+    }
+
+    .drop:hover, .drop.drag {
+      border-color: var(--accent);
+      background: rgba(232, 160, 74, 0.22);
+      transform: translateY(-1px);
+    }
+
+    .drop strong {
+      display: block;
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+    }
+
+    .drop p { color: var(--muted); font-size: 0.9rem; }
+
+    .types {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 16px;
+    }
+
+    .types i {
+      font-style: normal;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--muted);
+      border: 1px solid var(--line);
+    }
+
+    .controls {
+      display: grid;
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    label.field {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .levels {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .levels button {
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--ink);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .levels button.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #1a1208;
+    }
+
+    .levels button:hover:not(.active) {
+      border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+    }
+
+    .sliders {
+      display: grid;
+      gap: 14px;
+      padding: 14px 14px 4px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(0, 0, 0, 0.18);
+    }
+
+    .slider-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px 12px;
+      align-items: center;
+    }
+
+    .slider-row label {
+      font-size: 0.82rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .slider-row .val {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .slider-row input[type="range"] {
+      grid-column: 1 / -1;
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+    }
+
+    .checks label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.88rem;
+      color: var(--ink);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .checks input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .btn {
+      font: inherit;
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 12px 22px;
+      border: none;
+      border-radius: 12px;
+      background: var(--accent);
+      color: #1a1208;
+      cursor: pointer;
+      transition: transform 0.15s, filter 0.15s, opacity 0.15s;
+    }
+
+    .btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.05); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      font-weight: 600;
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      color: var(--ink);
+      border-color: color-mix(in srgb, var(--ink) 30%, var(--line));
+      filter: none;
+    }
+
+    .file-list { display: grid; gap: 10px; margin-top: 18px; }
+
+    .file {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px 12px;
+      align-items: center;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(0, 0, 0, 0.22);
+      animation: rise 0.4s ease both;
+    }
+
+    .file-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      word-break: break-all;
+    }
+
+    .file-meta {
+      grid-column: 1 / -1;
+      font-size: 0.82rem;
+      color: var(--muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+    }
+
+    .file-meta .ok { color: var(--ok); font-weight: 600; }
+    .file-meta .err { color: var(--danger); }
+    .file-meta .busy { color: var(--accent); }
+
+    .bar {
+      grid-column: 1 / -1;
+      height: 4px;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+      display: none;
+    }
+
+    .bar.show { display: block; }
+
+    .bar > i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), #f0c27a);
+      border-radius: inherit;
+      transition: width 0.25s ease;
+    }
+
+    .hint {
+      margin-top: 18px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.55;
+      animation: rise 0.75s ease 0.14s both;
+    }
+
+    footer {
+      margin-top: 28px;
+      font-size: 0.78rem;
+      color: color-mix(in srgb, var(--muted) 70%, transparent);
+      animation: rise 0.8s ease 0.18s both;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @media (max-width: 560px) {
+      .wrap { padding-top: 32px; }
+      .panel { padding: 16px; }
+      .drop { padding: 32px 14px; }
+      .row { flex-direction: column; align-items: stretch; }
+      .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1 class="brand">压舱<span>.</span></h1>
+      <p class="tagline">本地压缩 PDF / Word / Excel / PPT，文件不上传，体积立刻变小。</p>
+    </header>
+
+    <section class="panel">
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="选择文件">
+        <strong>拖入文件，或点击选择</strong>
+        <p>支持批量；全部在浏览器内处理</p>
+        <div class="types">
+          <i>PDF</i><i>DOCX</i><i>XLSX</i><i>PPTX</i>
+        </div>
+      </div>
+      <input type="file" id="input" hidden multiple accept=".pdf,.docx,.xlsx,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.presentationml.presentation" />
+
+      <div class="controls">
+        <div>
+          <label class="field">预设</label>
+          <div class="levels" id="levels">
+            <button type="button" data-level="light">清晰优先</button>
+            <button type="button" data-level="normal" class="active">均衡</button>
+            <button type="button" data-level="strong">体积优先</button>
+            <button type="button" data-level="custom">自定义</button>
+          </div>
+        </div>
+
+        <div class="sliders" id="sliders">
+          <div class="slider-row">
+            <label for="qClarity">图片清晰度</label>
+            <span class="val" id="vClarity">62%</span>
+            <input id="qClarity" type="range" min="25" max="95" step="1" value="62" />
+          </div>
+          <div class="slider-row">
+            <label for="qScale">分辨率比例</label>
+            <span class="val" id="vScale">85%</span>
+            <input id="qScale" type="range" min="40" max="100" step="1" value="85" />
+          </div>
+          <div class="slider-row">
+            <label for="qMax">最长边上限</label>
+            <span class="val" id="vMax">1600px</span>
+            <input id="qMax" type="range" min="800" max="4000" step="50" value="1600" />
+          </div>
+        </div>
+
+        <div class="checks">
+          <label><input type="checkbox" id="keepRes" /> 保持原分辨率（只压画质）</label>
+          <label><input type="checkbox" id="keepPng" /> PNG 不转 JPG（保透明）</label>
+        </div>
+
+        <div class="row">
+          <button type="button" class="btn" id="run" disabled>开始压缩</button>
+          <button type="button" class="btn btn-ghost" id="clear" disabled>清空列表</button>
+        </div>
+      </div>
+
+      <div class="file-list" id="list"></div>
+    </section>
+
+    <p class="hint">可调清晰度 / 分辨率 / 最长边。勾选「保持原分辨率」时不缩小尺寸，只降低 JPEG 质量；「PNG 不转 JPG」可保留透明图。PDF 按页重绘，Office 压内嵌图并提高 ZIP 压缩率。</p>
+    <footer>压舱 · 纯前端 · 无服务器</footer>
+  </div>
+
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+
+    const LEVELS = {
+      light:  { jpeg: 88, scale: 100, maxEdge: 2800 },
+      normal: { jpeg: 62, scale: 85,  maxEdge: 1600 },
+      strong: { jpeg: 40, scale: 65,  maxEdge: 1100 },
+    };
+
+    const ALLOWED = new Set(["pdf", "docx", "xlsx", "pptx"]);
+    const drop = document.getElementById("drop");
+    const input = document.getElementById("input");
+    const listEl = document.getElementById("list");
+    const runBtn = document.getElementById("run");
+    const clearBtn = document.getElementById("clear");
+    const levelsEl = document.getElementById("levels");
+    const qClarity = document.getElementById("qClarity");
+    const qScale = document.getElementById("qScale");
+    const qMax = document.getElementById("qMax");
+    const vClarity = document.getElementById("vClarity");
+    const vScale = document.getElementById("vScale");
+    const vMax = document.getElementById("vMax");
+    const keepRes = document.getElementById("keepRes");
+    const keepPng = document.getElementById("keepPng");
+
+    let level = "normal";
+    let syncing = false;
+    /** @type {{ id: string, file: File, status: string, out?: Blob, err?: string, ratio?: number }[]} */
+    let items = [];
+
+    const fmt = (n) => {
+      if (n < 1024) return n + " B";
+      if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
+      return (n / 1048576).toFixed(2) + " MB";
+    };
+
+    const extOf = (name) => (name.split(".").pop() || "").toLowerCase();
+
+    const blobDownload = (blob, name) => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    };
+
+    const outName = (name) => {
+      const i = name.lastIndexOf(".");
+      if (i < 0) return name + "_compressed";
+      return name.slice(0, i) + "_compressed" + name.slice(i);
+    };
+
+    function refreshLabels() {
+      vClarity.textContent = qClarity.value + "%";
+      vScale.textContent = qScale.value + "%";
+      vMax.textContent = qMax.value + "px";
+      qScale.disabled = keepRes.checked;
+      qMax.disabled = keepRes.checked;
+      qScale.style.opacity = keepRes.checked ? "0.4" : "1";
+      qMax.style.opacity = keepRes.checked ? "0.4" : "1";
+    }
+
+    function getOpts() {
+      const scale = keepRes.checked ? 1 : Number(qScale.value) / 100;
+      const maxEdge = keepRes.checked ? 99999 : Number(qMax.value);
+      return {
+        jpeg: Number(qClarity.value) / 100,
+        scale,
+        maxEdge,
+        keepPng: keepPng.checked,
+        smooth: Number(qClarity.value) >= 70 ? "high" : "medium",
+      };
+    }
+
+    function markLevel(next) {
+      level = next;
+      levelsEl.querySelectorAll("button").forEach((b) => {
+        b.classList.toggle("active", b.dataset.level === next);
+      });
+    }
+
+    function applyPreset(name) {
+      const p = LEVELS[name];
+      if (!p) return;
+      syncing = true;
+      qClarity.value = p.jpeg;
+      qScale.value = p.scale;
+      qMax.value = p.maxEdge;
+      syncing = false;
+      markLevel(name);
+      refreshLabels();
+    }
+
+    function onManualChange() {
+      if (syncing) return;
+      markLevel("custom");
+      refreshLabels();
+    }
+
+    levelsEl.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-level]");
+      if (!btn) return;
+      if (btn.dataset.level === "custom") {
+        markLevel("custom");
+        return;
+      }
+      applyPreset(btn.dataset.level);
+    });
+
+    [qClarity, qScale, qMax].forEach((el) => el.addEventListener("input", onManualChange));
+    keepRes.addEventListener("change", () => {
+      markLevel("custom");
+      refreshLabels();
+    });
+    keepPng.addEventListener("change", () => markLevel("custom"));
+    applyPreset("normal");
+
+    function render() {
+      listEl.innerHTML = "";
+      items.forEach((it) => {
+        const el = document.createElement("div");
+        el.className = "file";
+        el.dataset.id = it.id;
+
+        let meta = `<span>${fmt(it.file.size)}</span><span>.${extOf(it.file.name)}</span>`;
+        if (it.status === "working") meta += `<span class="busy">压缩中…</span>`;
+        if (it.status === "done" && it.out) {
+          const saved = Math.max(0, 1 - it.out.size / it.file.size);
+          meta += `<span class="ok">${fmt(it.out.size)} · 减小 ${(saved * 100).toFixed(0)}%</span>`;
+        }
+        if (it.status === "error") meta += `<span class="err">${it.err || "失败"}</span>`;
+        if (it.status === "skip") meta += `<span class="err">已是较小或无法再压</span>`;
+
+        el.innerHTML = `
+          <div class="file-name">${it.file.name}</div>
+          <div class="actions"></div>
+          <div class="file-meta">${meta}</div>
+          <div class="bar${it.status === "working" ? " show" : ""}"><i style="width:${it.progress || 0}%"></i></div>
+        `;
+
+        const actions = el.querySelector(".actions");
+        if (it.status === "done" && it.out) {
+          const dl = document.createElement("button");
+          dl.className = "btn";
+          dl.style.padding = "8px 14px";
+          dl.style.fontSize = "0.82rem";
+          dl.textContent = "下载";
+          dl.onclick = () => blobDownload(it.out, outName(it.file.name));
+          actions.appendChild(dl);
+        } else if (it.status === "idle" || it.status === "error" || it.status === "skip") {
+          const rm = document.createElement("button");
+          rm.className = "btn btn-ghost";
+          rm.style.padding = "8px 12px";
+          rm.style.fontSize = "0.82rem";
+          rm.textContent = "移除";
+          rm.onclick = () => {
+            items = items.filter((x) => x.id !== it.id);
+            render();
+          };
+          actions.appendChild(rm);
+        }
+
+        listEl.appendChild(el);
+      });
+
+      runBtn.disabled = !items.some((x) => x.status === "idle" || x.status === "error");
+      clearBtn.disabled = items.length === 0;
+    }
+
+    function addFiles(fileList) {
+      for (const file of fileList) {
+        const ext = extOf(file.name);
+        if (!ALLOWED.has(ext)) continue;
+        items.push({
+          id: crypto.randomUUID(),
+          file,
+          status: "idle",
+          progress: 0,
+        });
+      }
+      render();
+    }
+
+    drop.addEventListener("click", () => input.click());
+    drop.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); }
+    });
+    input.addEventListener("change", () => {
+      if (input.files?.length) addFiles(input.files);
+      input.value = "";
+    });
+
+    ["dragenter", "dragover"].forEach((ev) => {
+      drop.addEventListener(ev, (e) => {
+        e.preventDefault();
+        drop.classList.add("drag");
+      });
+    });
+    ["dragleave", "drop"].forEach((ev) => {
+      drop.addEventListener(ev, (e) => {
+        e.preventDefault();
+        drop.classList.remove("drag");
+      });
+    });
+    drop.addEventListener("drop", (e) => {
+      if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files);
+    });
+
+    clearBtn.addEventListener("click", () => {
+      items = [];
+      render();
+    });
+
+    function mimeFromPath(path) {
+      if (/\.png$/i.test(path)) return "image/png";
+      if (/\.jpe?g$/i.test(path)) return "image/jpeg";
+      if (/\.gif$/i.test(path)) return "image/gif";
+      if (/\.webp$/i.test(path)) return "image/webp";
+      if (/\.bmp$/i.test(path)) return "image/bmp";
+      return "application/octet-stream";
+    }
+
+    async function compressImageBytes(bytes, mime, opts) {
+      const blob = new Blob([bytes], { type: mime });
+      const bitmap = await createImageBitmap(blob);
+      let w = bitmap.width;
+      let h = bitmap.height;
+      const max = opts.maxEdge;
+      let scale = opts.scale;
+      if (Math.max(w, h) * scale > max) scale = max / Math.max(w, h);
+      w = Math.max(1, Math.round(w * scale));
+      h = Math.max(1, Math.round(h * scale));
+
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      const asPng = opts.keepPng && /png/i.test(mime);
+      if (!asPng) {
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, w, h);
+      }
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = opts.smooth || "medium";
+      ctx.drawImage(bitmap, 0, 0, w, h);
+      bitmap.close();
+
+      const type = asPng ? "image/png" : "image/jpeg";
+      const quality = asPng ? undefined : opts.jpeg;
+      const out = await new Promise((res) => canvas.toBlob(res, type, quality));
+      if (!out || out.size >= bytes.byteLength) return null;
+      return { bytes: new Uint8Array(await out.arrayBuffer()), type, ext: asPng ? null : "jpg" };
+    }
+
+    async function compressOffice(file, opts, onProgress) {
+      const zip = await JSZip.loadAsync(await file.arrayBuffer());
+      const paths = Object.keys(zip.files).filter((p) => {
+        if (zip.files[p].dir) return false;
+        return /\.(png|jpe?g|gif|bmp|webp)$/i.test(p) && /\/media\//i.test(p);
+      });
+
+      const renames = [];
+      let done = 0;
+      for (const path of paths) {
+        const raw = await zip.file(path).async("uint8array");
+        try {
+          const compressed = await compressImageBytes(raw, mimeFromPath(path), opts);
+          if (compressed) {
+            let newPath = path;
+            if (compressed.ext === "jpg" && !/\.jpe?g$/i.test(path)) {
+              newPath = path.replace(/\.[^.]+$/, ".jpg");
+              zip.remove(path);
+              renames.push([path, newPath]);
+            }
+            zip.file(newPath, compressed.bytes, {
+              compression: "DEFLATE",
+              compressionOptions: { level: 9 },
+            });
+          }
+        } catch (_) { /* skip unbroken image */ }
+        done++;
+        onProgress(Math.round((done / Math.max(paths.length, 1)) * 85));
+      }
+
+      if (renames.length) await rewriteOfficeRefs(zip, renames);
+
+      return zip.generateAsync(
+        { type: "blob", compression: "DEFLATE", compressionOptions: { level: 9 } },
+        (meta) => onProgress(85 + Math.round((meta.percent || 0) * 0.15))
+      );
+    }
+
+    async function rewriteOfficeRefs(zip, renames) {
+      const xmlPaths = Object.keys(zip.files).filter(
+        (p) => !zip.files[p].dir && /\.(xml|rels)$/i.test(p)
+      );
+      for (const t of xmlPaths) {
+        let text = await zip.file(t).async("string");
+        let changed = false;
+        for (const [oldPath, newPath] of renames) {
+          const baseOld = oldPath.split("/").pop();
+          const baseNew = newPath.split("/").pop();
+          if (text.includes(baseOld)) {
+            text = text.split(baseOld).join(baseNew);
+            changed = true;
+          }
+          if (text.includes(oldPath)) {
+            text = text.split(oldPath).join(newPath);
+            changed = true;
+          }
+        }
+        if (/\[Content_Types\]\.xml$/i.test(t)) {
+          for (const [, newPath] of renames) {
+            const part = "/" + newPath.replace(/^\/+/, "");
+            const re = new RegExp(
+              `PartName="${escapeRe(part)}"[^>]*ContentType="[^"]*"`,
+              "i"
+            );
+            if (re.test(text)) {
+              text = text.replace(re, `PartName="${part}" ContentType="image/jpeg"`);
+              changed = true;
+            } else if (!text.includes(`PartName="${part}"`)) {
+              text = text.replace(
+                "</Types>",
+                `<Override PartName="${part}" ContentType="image/jpeg"/></Types>`
+              );
+              changed = true;
+            }
+          }
+          if (!/Extension="jpg"/i.test(text)) {
+            text = text.replace(
+              "</Types>",
+              `<Default Extension="jpg" ContentType="image/jpeg"/></Types>`
+            );
+            changed = true;
+          }
+        }
+        if (changed) zip.file(t, text);
+      }
+    }
+
+    function escapeRe(s) {
+      return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+
+    async function compressPdf(file, opts, onProgress) {
+      const data = new Uint8Array(await file.arrayBuffer());
+      const pdf = await pdfjsLib.getDocument({ data }).promise;
+      const { PDFDocument } = PDFLib;
+      const outDoc = await PDFDocument.create();
+      const n = pdf.numPages;
+
+      for (let i = 1; i <= n; i++) {
+        const page = await pdf.getPage(i);
+        const base = page.getViewport({ scale: 1 });
+        let scale = opts.scale;
+        const maxDim = Math.max(base.width, base.height) * scale;
+        if (maxDim > opts.maxEdge) scale *= opts.maxEdge / maxDim;
+        const viewport = page.getViewport({ scale });
+
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.floor(viewport.width));
+        canvas.height = Math.max(1, Math.floor(viewport.height));
+        const ctx = canvas.getContext("2d", { alpha: false });
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = opts.smooth || "medium";
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        const jpeg = await new Promise((res) =>
+          canvas.toBlob(res, "image/jpeg", opts.jpeg)
+        );
+        const bytes = new Uint8Array(await jpeg.arrayBuffer());
+        const img = await outDoc.embedJpg(bytes);
+        const p = outDoc.addPage([img.width, img.height]);
+        p.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+        onProgress(Math.round((i / n) * 100));
+      }
+
+      const bytes = await outDoc.save({ useObjectStreams: true });
+      return new Blob([bytes], { type: "application/pdf" });
+    }
+
+    async function compressOne(it) {
+      const opts = getOpts();
+      const ext = extOf(it.file.name);
+      it.status = "working";
+      it.progress = 0;
+      it.err = undefined;
+      render();
+
+      const onProgress = (p) => {
+        it.progress = p;
+        const bar = listEl.querySelector(`[data-id="${it.id}"] .bar > i`);
+        const wrap = listEl.querySelector(`[data-id="${it.id}"] .bar`);
+        if (wrap) wrap.classList.add("show");
+        if (bar) bar.style.width = p + "%";
+      };
+
+      try {
+        let out;
+        if (ext === "pdf") out = await compressPdf(it.file, opts, onProgress);
+        else out = await compressOffice(it.file, opts, onProgress);
+
+        if (out.size >= it.file.size * 0.98) {
+          it.status = "skip";
+          it.out = undefined;
+        } else {
+          it.out = out;
+          it.status = "done";
+        }
+      } catch (e) {
+        console.error(e);
+        it.status = "error";
+        it.err = e?.message || "压缩失败";
+      }
+      it.progress = 100;
+      render();
+    }
+
+    runBtn.addEventListener("click", async () => {
+      runBtn.disabled = true;
+      const queue = items.filter((x) => x.status === "idle" || x.status === "error");
+      for (const it of queue) await compressOne(it);
+      render();
+    });
+  </script>
+</body>
+</html>
