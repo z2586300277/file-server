@@ -26,5 +26,6 @@ export default [
     { id: "editor_pdf", name: "编辑器文档", url: HOST + "file/editor_pdf.pdf", image: '', type: "file" },
     { id: "cracks", name: "波纹", url: HOST + "images/cracks.png", image: HOST + "images/cracks.png", type: "image" },
     { id: "pdf_min", name: "文档压缩", url: HOST + "file/pdf_min.html", image: '', type: "file" },
-    { id: "side", name: "边缘贴图", url: HOST + "images/side.png", image: HOST + "images/side.png", type: "image" }
+    { id: "side", name: "边缘贴图", url: HOST + "images/side.png", image: HOST + "images/side.png", type: "image" },
+    { id: "world", name: "世界geojson", url: HOST + "data/world.json", image: '', type: "data" }
 ];
