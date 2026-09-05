@@ -28,5 +28,6 @@ export default [
     { id: "pdf_min", name: "文档压缩", url: HOST + "file/pdf_min.html", image: '', type: "file" },
     { id: "side", name: "边缘贴图", url: HOST + "images/side.png", image: HOST + "images/side.png", type: "image" },
     { id: "world", name: "世界geojson", url: HOST + "data/world.json", image: '', type: "data" },
-    { id: "wallShaderComponent", name: "远程组件", url: HOST + "file/wallShaderComponent.js", image: '', type: "file" }
+    { id: "wallShaderComponent", name: "远程组件", url: HOST + "file/wallShaderComponent.js", image: '', type: "file" },
+    { id: "mesh-edges-component", name: "框线组件", url: HOST + "file/mesh-edges-component.js", image: '', type: "file" }
 ];
