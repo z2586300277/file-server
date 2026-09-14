@@ -30,5 +30,6 @@ export default [
     { id: "world", name: "世界geojson", url: HOST + "data/world.json", image: '', type: "data" },
     { id: "wallShaderComponent", name: "远程组件", url: HOST + "file/wallShaderComponent.js", image: '', type: "file" },
     { id: "mesh-edges-component", name: "框线组件", url: HOST + "file/mesh-edges-component.js", image: '', type: "file" },
-    { id: "blurReflectGround_component", name: "磨砂地面", url: HOST + "file/blurReflectGround_component.js", image: '', type: "file" }
+    { id: "blurReflectGround_component", name: "磨砂地面", url: HOST + "file/blurReflectGround_component.js", image: '', type: "file" },
+    { id: "world_area", name: "世界大洲", url: HOST + "data/world_area.json", image: '', type: "data" }
 ];
