@@ -34,5 +34,6 @@ export default [
     { id: "world_area", name: "世界大洲", url: HOST + "data/world_area.json", image: '', type: "data" },
     { id: "flyline", name: "flyline", url: HOST + "images/flyline.png", image: HOST + "images/flyline.png", type: "image" },
     { id: "worldMap", name: "地球蓝色贴图", url: HOST + "images/worldMap.jpg", image: HOST + "images/worldMap.jpg", type: "image" },
-    { id: "business", name: "商业展示", url: HOST + "images/business.png", image: HOST + "images/business.png", type: "image" }
+    { id: "business", name: "商业展示", url: HOST + "images/business.png", image: HOST + "images/business.png", type: "image" },
+    { id: "company-logo", name: "公司logo", url: HOST + "images/company-logo.png", image: HOST + "images/company-logo.png", type: "image" }
 ];
