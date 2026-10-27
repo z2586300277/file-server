@@ -36,5 +36,6 @@ export default [
     { id: "worldMap", name: "地球蓝色贴图", url: HOST + "images/worldMap.jpg", image: HOST + "images/worldMap.jpg", type: "image" },
     { id: "business", name: "商业展示", url: HOST + "images/business.png", image: HOST + "images/business.png", type: "image" },
     { id: "company-logo", name: "公司logo", url: HOST + "images/company-logo.png", image: HOST + "images/company-logo.png", type: "image" },
-    { id: "new_editor", name: "新编辑器预览图", url: HOST + "images/new_editor.webp", image: HOST + "images/new_editor.webp", type: "image" }
+    { id: "new_editor", name: "新编辑器预览图", url: HOST + "images/new_editor.webp", image: HOST + "images/new_editor.webp", type: "image" },
+    { id: "ai_editor", name: "ai 编辑器封面图", url: HOST + "images/ai_editor.webp", image: HOST + "images/ai_editor.webp", type: "image" }
 ];
