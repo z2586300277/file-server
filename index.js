@@ -37,5 +37,6 @@ export default [
     { id: "business", name: "商业展示", url: HOST + "images/business.png", image: HOST + "images/business.png", type: "image" },
     { id: "company-logo", name: "公司logo", url: HOST + "images/company-logo.png", image: HOST + "images/company-logo.png", type: "image" },
     { id: "new_editor", name: "新编辑器预览图", url: HOST + "images/new_editor.webp", image: HOST + "images/new_editor.webp", type: "image" },
-    { id: "ai_editor", name: "ai 编辑器封面图", url: HOST + "images/ai_editor.webp", image: HOST + "images/ai_editor.webp", type: "image" }
+    { id: "ai_editor", name: "ai 编辑器封面图", url: HOST + "images/ai_editor.webp", image: HOST + "images/ai_editor.webp", type: "image" },
+    { id: "jigui", name: "机柜", url: HOST + "model/jigui.glb", image: HOST + "cover/jigui.webp", type: "model" }
 ];
